@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@media (max-width: 768px) {
+  aside{
+    position: absolute;
+  }
+}
+
+.btn:hover{
+  background-color: #66666646;
+  border-radius: 10px;
+}
+aside{
+  transition: width 0.3s ease;
+}
+#scrollBox {
+  scrollbar-width: thin;
+  scrollbar-color: #888 #f1f1f100;
+}
