@@ -3,7 +3,7 @@ import json
 import os
 import random
 
-BASE_DIR = os.path.dirname(__file__)  # backend/data/scripts
+BASE_DIR = os.path.dirname(__file__) 
 OUTPUT_DIR = os.path.join(BASE_DIR, "../generated_data")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
