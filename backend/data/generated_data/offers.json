@@ -1,0 +1,62 @@
+[
+  {
+    "phone": "+917835414968",
+    "offer_amount": 300000,
+    "interest_rate": 10.18,
+    "tenure_months": 18
+  },
+  {
+    "phone": "+917087439510",
+    "offer_amount": 200000,
+    "interest_rate": 14.52,
+    "tenure_months": 36
+  },
+  {
+    "phone": "+916830776163",
+    "offer_amount": 200000,
+    "interest_rate": 13.17,
+    "tenure_months": 36
+  },
+  {
+    "phone": "+918732890661",
+    "offer_amount": 100000,
+    "interest_rate": 10.12,
+    "tenure_months": 12
+  },
+  {
+    "phone": "+919262125557",
+    "offer_amount": 300000,
+    "interest_rate": 14.06,
+    "tenure_months": 18
+  },
+  {
+    "phone": "+916515729042",
+    "offer_amount": 100000,
+    "interest_rate": 10.58,
+    "tenure_months": 12
+  },
+  {
+    "phone": "+917607818481",
+    "offer_amount": 200000,
+    "interest_rate": 10.22,
+    "tenure_months": 36
+  },
+  {
+    "phone": "+917116241136",
+    "offer_amount": 300000,
+    "interest_rate": 14.84,
+    "tenure_months": 36
+  },
+  {
+    "phone": "+917243358622",
+    "offer_amount": 200000,
+    "interest_rate": 10.79,
+    "tenure_months": 36
+  },
+  {
+    "phone": "+919818733016",
+    "offer_amount": 150000,
+    "interest_rate": 11.48,
+    "tenure_months": 18
+  }
+]

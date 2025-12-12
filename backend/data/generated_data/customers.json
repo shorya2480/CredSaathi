@@ -1,0 +1,92 @@
+[
+  {
+    "customer_id": 1,
+    "name": "Amit Sharma",
+    "age": 28,
+    "city": "Chennai",
+    "current_loan_details": "Bike Loan",
+    "credit_score": 668,
+    "pre_approved_limit": 300000
+  },
+  {
+    "customer_id": 2,
+    "name": "Riya Patel",
+    "age": 55,
+    "city": "Hyderabad",
+    "current_loan_details": "Personal Loan",
+    "credit_score": 662,
+    "pre_approved_limit": 200000
+  },
+  {
+    "customer_id": 3,
+    "name": "Kunal Verma",
+    "age": 26,
+    "city": "Hyderabad",
+    "current_loan_details": "Car Loan",
+    "credit_score": 776,
+    "pre_approved_limit": 200000
+  },
+  {
+    "customer_id": 4,
+    "name": "Sneha Mehta",
+    "age": 46,
+    "city": "Hyderabad",
+    "current_loan_details": "Bike Loan",
+    "credit_score": 815,
+    "pre_approved_limit": 100000
+  },
+  {
+    "customer_id": 5,
+    "name": "Arjun Singh",
+    "age": 22,
+    "city": "Mumbai",
+    "current_loan_details": "Car Loan",
+    "credit_score": 686,
+    "pre_approved_limit": 300000
+  },
+  {
+    "customer_id": 6,
+    "name": "Priya Nair",
+    "age": 34,
+    "city": "Hyderabad",
+    "current_loan_details": "Personal Loan",
+    "credit_score": 752,
+    "pre_approved_limit": 100000
+  },
+  {
+    "customer_id": 7,
+    "name": "Rahul Khanna",
+    "age": 49,
+    "city": "Chennai",
+    "current_loan_details": "Car Loan",
+    "credit_score": 871,
+    "pre_approved_limit": 200000
+  },
+  {
+    "customer_id": 8,
+    "name": "Neha Desai",
+    "age": 53,
+    "city": "Mumbai",
+    "current_loan_details": "Car Loan",
+    "credit_score": 900,
+    "pre_approved_limit": 300000
+  },
+  {
+    "customer_id": 9,
+    "name": "Vikram Rao",
+    "age": 28,
+    "city": "Hyderabad",
+    "current_loan_details": "None",
+    "credit_score": 811,
+    "pre_approved_limit": 200000
+  },
+  {
+    "customer_id": 10,
+    "name": "Ananya Bose",
+    "age": 42,
+    "city": "Hyderabad",
+    "current_loan_details": "Personal Loan",
+    "credit_score": 692,
+    "pre_approved_limit": 150000
+  }
+]
