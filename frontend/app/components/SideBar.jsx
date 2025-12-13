@@ -1,6 +1,5 @@
 "use client";
-import { useRouter, useSearchParams } from "next/navigation";
-import "./ScrollBar.css"
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 const SideBar = ({ sideBar, setSideBar, showSettings, setShowSettings }) => {
@@ -94,8 +93,8 @@ const SideBar = ({ sideBar, setSideBar, showSettings, setShowSettings }) => {
         <img src="sidebar.svg" alt="close" className="w-5 invert cursor-ew-resize box-content p-2 hover:bg-[#81818146] rounded-xl" onClick={() => { setSideBar(!sideBar) }} />
       </div>
 
-      <div className='p-1 h-full flex flex-col justify-between transform transition-transform duration-300 ease-in-out'>
-        <div className='h-full overflow-y-auto'>
+      <div className='mr-1 h-full flex flex-col justify-between transform transition-transform duration-300 ease-in-out'>
+        <div className='h-full overflow-y-auto p-2'>
           <Btn icon={'pencil.svg'} text={'New Chat'} 
           clickHandler={() => {router.push('/home'), setSideBar(false)} } />
           <Btn icon={'search.svg'} imgWidth={5} text={'Search Chats'} />

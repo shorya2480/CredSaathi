@@ -71,9 +71,25 @@ const Home = () => {
 		}
 	];
 	const currChat = myChats.find(chat => chat._id.toString() === chatId)?.["chats"];
-	const handlePrompt = () => {
+
+	const handlePrompt = async () => {
 		if (!prompt) return;
-		alert(`You asked: ${prompt}`);
+
+		const response = await fetch('/api/prompt', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({ prompt }),
+		});
+		const res = await response.json();
+
+		//Implement chat, db update logic here
+		if (currChat) {
+			//
+		}else {
+			//
+		}
 		setPrompt("");
 	}
 	return (
@@ -81,18 +97,20 @@ const Home = () => {
 			<SideBar sideBar={sideBar} setSideBar={setSideBar} showSettings={showSettings} setShowSettings={setShowSettings} />
 			{sideBar && <div className='h-full w-full absolute z-5 top-0 bg-[#a5a5a514]' onClick={() => setSideBar(false)}></div>}
 			{showSettings &&
-				<div className='w-70 bg-[#444444f3] rounded-2xl p-2 bottom-18 left-2.5 z-30 absolute'>
-					<p className='p-2 cursor-pointer hover:bg-[#81818146] rounded-xl z-40'>Settings</p>
-					<p className='p-2 cursor-pointer hover:bg-[#81818146] rounded-xl z-40'>Log out</p>
-				</div>
-			}
-			{showSettings && <div className='h-full w-full absolute z-10 top-0' onClick={() => setShowSettings(false)}></div>}
+				<div>
+					<div className='w-70 bg-[#444444f3] rounded-2xl p-2 bottom-18 left-2.5 z-30 absolute'>
+						<p className='p-2 cursor-pointer hover:bg-[#81818146] rounded-xl z-40'>Documents</p>
+						<p className='p-2 cursor-pointer hover:bg-[#81818146] rounded-xl z-40'>Settings</p>
+						<p className='p-2 cursor-pointer hover:bg-[#81818146] rounded-xl z-40'>Log out</p>
+					</div>
+					<div className='h-full w-full absolute z-10 top-0' onClick={() => setShowSettings(false)}></div>
+				</div>}
 			<div className='flex fixed top-0 w-full items-center gap-4 p-2'>
 				<img src="menu.svg" alt="menu" className="w-7 invert cursor-pointer box-content p-1 hover:bg-[#81818146] rounded-xl" onClick={() => { setSideBar(!sideBar) }} />
 				<span className="text-2xl font-semibold">Cred Saathi</span>
 			</div>
-			<main className={`mt-14 h-full w-full flex flex-col items-center overflow-x-hidden ${currChat ? 'justify-between' : 'justify-center'}`}>
-				<div className={`flex w-full flex-col items-center justify-center gap-4 ${currChat ? 'p-16 mb-20' : 'mb-5'}`}>
+			<main className={`mt-14 mb-24 h-full w-full flex flex-col items-center overflow-x-hidden ${currChat ? 'justify-between' : 'justify-center'}`}>
+				<div className={`flex w-full flex-col items-center justify-center gap-4 ${currChat ? 'p-16' : 'mb-5'}`}>
 					{currChat ? (
 						currChat.map((msg, i) => {
 							if (i % 2) return (
@@ -114,7 +132,7 @@ const Home = () => {
 					) :
 						<h1 className='text-4xl p-7'>Hello Jee!</h1>}
 				</div>
-				<div className={`w-screen bg-[#00031e81] h-24 fixed -bottom-1 backdrop-blur-xs blur-xs ${!currChat && 'hidden'}`}></div>
+				<div className={`w-[102vw] bg-[#00031e81] h-24 fixed -bottom-1 backdrop-blur-xs blur-xs ${!currChat && 'hidden'}`}></div>
 				<div className={`w-2/3 ${currChat && 'fixed'} bottom-6 bg-[#303030] flex justify-between items-center rounded-4xl shadow-lg`}>
 					<img src="plus.svg" alt="add" className='size-10 p-2 bg-green-500 rounded-full ml-3 cursor-pointer' />
 					<input
