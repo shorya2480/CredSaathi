@@ -14,9 +14,7 @@ llm = ChatGroq(
 )
 
 
-def master_agent_node(state: AgentState) -> AgentState:
-    """Master Agent using Groq (FREE & FAST)"""
-    
+def master_agent_node(state: AgentState) -> AgentState:    
     user_messages = [msg for msg in state["messages"] if isinstance(msg, HumanMessage)]
     
     if state["loan_status"] == "initial":
