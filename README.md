@@ -8,6 +8,7 @@
 
 ### Getting Started:
 
+**Frontend**
 On your terminal, run the following commands:
 ```bash
 npm i
@@ -16,6 +17,16 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+**Backend**
+- create a .env folder inside backend, and generate your groq api key and store it as GROQ_API_KEY=your_key
+- Go to data/dummy-servers inside backend and run `python fastapi_server.py`
+- `python main.py` in the backend
+
+Sample request in curl - 
+`curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d "{\"phone\": \"+917835414968\", \"message\": \"Hi, I need a loan\"}"`
+
+
 
 ## About Us:
 Team – SyntaxErr<br>
