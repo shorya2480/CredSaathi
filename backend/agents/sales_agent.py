@@ -134,29 +134,29 @@ TASKS:
 CONSTRAINTS:
 - loan_purpose must be a legitimate financial purpose (e.g. education, medical, home renovation, travel, wedding, debt consolidation, business, etc.).
 - If the user mentions illegal or harmful activity (robbery, scams, drugs, etc.), do NOT accept that as loan_purpose.
-  - In that case, set \"loan_purpose\": null and
-    \"next_question\": \"We cannot provide loans for illegal purposes. Could you please share a valid purpose for your loan?\"
+  - In that case, set "loan_purpose": null and
+    "next_question": "We cannot provide loans for illegal purposes. Could you please share a valid purpose for your loan?"
 - If loan_amount, tenure_months, and loan_purpose are all known (not null), do NOT ask any more questions.
-  - In that case, keep \"next_question\" as an empty string \"\".
-- Try to infer numbers from phrases like \"10 lakh\" or \"5 lakh\" (e.g. 10 lakh = 1000000, 5 lakh = 500000).
+  - In that case, keep "next_question" as an empty string "".
+- Try to infer numbers from phrases like "10 lakh" or "5 lakh" (e.g. 10 lakh = 1000000, 5 lakh = 500000).
 
 FIELDS TO EXTRACT:
 - loan_amount (number or null)
 - tenure_months (number or null)
 - loan_purpose (string or null)
 - sentiment (one of: positive, neutral, confused, stressed)
-- next_question (what should be asked next, or \"\" if everything is already known)
+- next_question (what should be asked next, or "" if everything is already known)
 
 LATEST_USER_MESSAGE:
-\"{user_message}\"
+"{user_message}"
 
 JSON FORMAT:
 {{
-  \"loan_amount\": null,
-  \"tenure_months\": null,
-  \"loan_purpose\": null,
-  \"sentiment\": \"neutral\",
-  \"next_question\": \"\"
+  "loan_amount": null,
+  "tenure_months": null,
+  "loan_purpose": null,
+  "sentiment": "neutral",
+  "next_question": ""
 }}
 """
         try:

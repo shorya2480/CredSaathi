@@ -1,6 +1,7 @@
 # Environment variables
 .env
 *.env
+backend/.env
 
 # Python
 __pycache__/
@@ -11,6 +12,7 @@ __pycache__/
 venv/
 env/
 ENV/
+backend/env/
 
 # IDE
 .vscode/
@@ -21,4 +23,3 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
-

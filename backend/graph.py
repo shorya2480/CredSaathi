@@ -1,1 +1,0 @@
-# Here we will create a state class consisting of all user details that will be shared among agentic nodes
