@@ -5,7 +5,7 @@ from services.data_services import credit_bureau_service
 import os
 
 llm = ChatGroq(
-    model="llama-3.1-70b-versatile",
+    model="llama-3.1-8b-instant",
     temperature=0.7,
     groq_api_key=os.getenv("GROQ_API_KEY")
 )
