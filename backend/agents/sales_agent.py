@@ -1,166 +1,250 @@
-from langchain_groq import ChatGroq
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from graph.state import AgentState
-from services.data_services import offer_service
+from typing import Dict
+import json
 import os
-import re
+from dotenv import load_dotenv
+from groq import Groq
 
-llm = ChatGroq(
-        model="llama-3.1-8b-instant",  
-    temperature=0.7,
-    groq_api_key=os.getenv("GROQ_API_KEY")
-)
+# Load environment variables once
+load_dotenv()
 
 
-def extract_loan_details(user_message: str, state: AgentState) -> dict:
+def _get_api_key() -> str:
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("Missing GROQ_API_KEY in environment or .env")
+    return api_key
+
+
+class SalesAgent:
     """
-    Extract loan amount and tenure from user message using regex and LLM.
-    
-    Returns:
-        dict with 'amount', 'tenure', 'has_info'
+    Interactive BFSI Sales Agent for CredSaathi (single-language, no detection)
     """
-    # extract numbers from message
-    amounts = re.findall(r'(\d+(?:,\d+)*(?:\.\d+)?)\s*(?:lakhs?|lacs?|k|thousand)?', user_message.lower())
-    tenures = re.findall(r'(\d+)\s*(?:months?|years?|yr)', user_message.lower())
-    
-    result = {
-        'amount': None,
-        'tenure': None,
-        'has_info': False
-    }
-    
-    if amounts:
-        amount_str = amounts[0].replace(',', '')
-        amount = float(amount_str)
-        
-        # Handle lakhs/thousands
-        if 'lakh' in user_message.lower() or 'lac' in user_message.lower():
-            amount = amount * 100000
-        elif 'k' in user_message.lower() or 'thousand' in user_message.lower():
-            amount = amount * 1000
-        elif amount < 1000:  # Assume lakhs if small number
-            amount = amount * 100000
-        
-        result['amount'] = amount
-        result['has_info'] = True
-    
-    if tenures:
-        tenure = int(tenures[0])
-        if 'year' in user_message.lower() or 'yr' in user_message.lower():
-            tenure = tenure * 12
-        result['tenure'] = tenure
-        result['has_info'] = True
-    
-    return result
 
+    def __init__(self) -> None:
+        self.client = Groq(api_key=_get_api_key())
+        # Initialize collected data
+        self.data = {
+            "loan_amount": None,
+            "tenure_months": None,
+            "loan_purpose": None,
+            "sentiment": "neutral",
+            "next_question": "Hi! How much loan are you looking for?",
+        }
+        # Optional short conversation history (last few user messages)
+        self.history = []
 
-def sales_agent_node(state: AgentState) -> AgentState:
-    """
-    Sales Agent - Negotiates loan terms.
-    
-    Workflow:
-    1. Check if we have loan details already
-    2. If not, extract from user message
-    3. Ask for missing information (amount or tenure)
-    4. Once both collected, get pre-approved offer
-    5. Present offer and move to verification
-    """
-    
-    # Get last user message
-    user_messages = [msg for msg in state["messages"] if isinstance(msg, HumanMessage)]
-    last_user_message = user_messages[-1].content if user_messages else ""
-    
-    # Extract loan details from message
-    extracted = extract_loan_details(last_user_message, state)
-    
-    # Update state with extracted info
-    if extracted['amount'] and not state['requested_loan_amount']:
-        state['requested_loan_amount'] = extracted['amount']
-    
-    if extracted['tenure'] and not state['requested_tenure']:
-        state['requested_tenure'] = extracted['tenure']
-    
-    # Check what information we still need
-    missing_info = []
-    if not state['requested_loan_amount']:
-        missing_info.append('loan amount')
-    if not state['requested_tenure']:
-        missing_info.append('tenure')
-    
-    # If missing information, ask for it
-    if missing_info:
-        prompt = f"""You are a sales agent helping with a personal loan.
+    def _normalize_amount(self, value):
+        """
+        Normalize Indian-style amounts like '10 lakh', '5L', '500000' into an int.
+        Returns an int or None if it cannot be parsed or is unreasonable.
+        """
+        if value is None:
+            return None
 
-Customer: {state['customer_name']}
-Pre-approved limit: ₹{state['pre_approved_limit']:,.0f}
-
-Missing information: {', '.join(missing_info)}
-
-User said: "{last_user_message}"
-
-Generate a friendly response that:
-1. Acknowledges what they said (if anything relevant)
-2. Asks for the missing information: {missing_info[0]}
-3. Provides helpful context (e.g., "Our loans range from ₹1L to ₹10L" or "You can choose tenure from 12-60 months")
-
-Keep it conversational and brief (2-3 sentences)."""
-        
-        response = llm.invoke([SystemMessage(content=prompt)])
-        state["messages"].append(AIMessage(content=response.content))
-        return state
-
-    offer = offer_service.get_offer(state['phone'])
-    
-  
-    if offer:
-        base_rate = offer.interest_rate
-    else:
-        # Default rates based on tenure
-        if state['requested_tenure'] <= 12:
-            base_rate = 10.5
-        elif state['requested_tenure'] <= 24:
-            base_rate = 11.5
+        # Already numeric
+        if isinstance(value, (int, float)):
+            amount = int(value)
         else:
-            base_rate = 12.5
-    
-    state['negotiated_interest_rate'] = base_rate
-    
-    # Calculate EMI using formula: P * r * (1+r)^n / ((1+r)^n - 1)
-    P = state['requested_loan_amount']
-    r = state['negotiated_interest_rate'] / (12 * 100) 
-    n = state['requested_tenure']
-    
-    emi = P * r * ((1 + r) ** n) / (((1 + r) ** n) - 1)
-    state['calculated_emi'] = round(emi, 2)
-    
-    # Generate offer presentation
-    offer_prompt = f"""You are a sales agent presenting a loan offer.
+            text = str(value).lower().replace(",", "").strip()
 
-Customer: {state['customer_name']}
-Requested: ₹{state['requested_loan_amount']:,.0f} for {state['requested_tenure']} months
+            multiplier = 1
+            if "lakh" in text or "lac" in text or "lacs" in text:
+                multiplier = 100000
+                text = (
+                    text.replace("lakh", "")
+                    .replace("lac", "")
+                    .replace("lacs", "")
+                    .strip()
+                )
+            elif text.endswith("l"):
+                # e.g. '5l'
+                multiplier = 100000
+                text = text[:-1].strip()
 
-Offer Details:
-- Amount: ₹{state['requested_loan_amount']:,.0f}
-- Tenure: {state['requested_tenure']} months
-- Interest Rate: {state['negotiated_interest_rate']}% p.a.
-- Monthly EMI: ₹{state['calculated_emi']:,.0f}
+            try:
+                number = float(text)
+                amount = int(number * multiplier)
+            except ValueError:
+                return None
 
-Generate an enthusiastic offer presentation (3-4 sentences):
-1. Confirm the loan details
-2. Highlight the competitive interest rate
-3. Mention the EMI amount
-4. Ask if they'd like to proceed with verification
+        # Basic sanity check
+        if amount <= 0 or amount > 10**9:
+            return None
 
-Keep it professional but warm."""
-    
-    response = llm.invoke([SystemMessage(content=offer_prompt)])
-    state["messages"].append(AIMessage(content=response.content))
-    
-    # Move to verification stage
-    state["loan_status"] = "verifying"
-    state["current_agent"] = "verification"
-    
-    return state
+        return amount
+
+    def _normalize_tenure(self, value):
+        """
+        Normalize tenure into months. Accepts numbers like 36 or strings like '3 years'.
+        Returns an int or None.
+        """
+        if value is None:
+            return None
+
+        if isinstance(value, (int, float)):
+            months = int(value)
+        else:
+            text = str(value).lower().strip()
+            if "year" in text:
+                # e.g. '3 years'
+                parts = [p for p in text.split() if p.replace(".", "", 1).isdigit()]
+                if not parts:
+                    return None
+                years = float(parts[0])
+                months = int(years * 12)
+            else:
+                # assume directly months like '36'
+                try:
+                    months = int(text)
+                except ValueError:
+                    return None
+
+        if months <= 0 or months > 240:
+            return None
+
+        return months
+
+    def _process_message(self, user_message: str) -> Dict:
+        """
+        Process user input through Groq LLM and update structured data.
+        Language detection has been removed.
+        """
+        # Track short history (for better context)
+        self.history.append(user_message)
+        recent_history = "\n".join(self.history[-3:])
+
+        prompt = f"""
+You are a BFSI Sales Agent for CredSaathi.
+
+CURRENT_KNOWN_DATA:
+- loan_amount: {self.data['loan_amount'] if self.data['loan_amount'] is not None else 'unknown'}
+- tenure_months: {self.data['tenure_months'] if self.data['tenure_months'] is not None else 'unknown'}
+- loan_purpose: {self.data['loan_purpose'] if self.data['loan_purpose'] is not None else 'unknown'}
+
+RECENT_USER_MESSAGES:
+{recent_history}
+
+TASKS:
+1. Extract loan details from the latest user message (and earlier context if needed).
+2. Detect user sentiment (positive / neutral / confused / stressed).
+3. Respond politely and professionally.
+4. Suggest next question ONLY for fields that are still unknown.
+5. Return ONLY valid JSON (no markdown, no explanation).
+
+CONSTRAINTS:
+- loan_purpose must be a legitimate financial purpose (e.g. education, medical, home renovation, travel, wedding, debt consolidation, business, etc.).
+- If the user mentions illegal or harmful activity (robbery, scams, drugs, etc.), do NOT accept that as loan_purpose.
+  - In that case, set "loan_purpose": null and
+    "next_question": "We cannot provide loans for illegal purposes. Could you please share a valid purpose for your loan?"
+- If loan_amount, tenure_months, and loan_purpose are all known (not null), do NOT ask any more questions.
+  - In that case, keep "next_question" as an empty string "".
+- Try to infer numbers from phrases like "10 lakh" or "5 lakh" (e.g. 10 lakh = 1000000, 5 lakh = 500000).
+
+FIELDS TO EXTRACT:
+- loan_amount (number or null)
+- tenure_months (number or null)
+- loan_purpose (string or null)
+- sentiment (one of: positive, neutral, confused, stressed)
+- next_question (what should be asked next, or "" if everything is already known)
+
+LATEST_USER_MESSAGE:
+"{user_message}"
+
+JSON FORMAT:
+{{
+  "loan_amount": null,
+  "tenure_months": null,
+  "loan_purpose": null,
+  "sentiment": "neutral",
+  "next_question": ""
+}}
+"""
+        try:
+            response = self.client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[
+                    {"role": "system", "content": "You are a professional BFSI sales AI."},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.3,
+            )
+            content = response.choices[0].message.content
+            json_data = json.loads(content)
+        except Exception:
+            json_data = {
+                "loan_amount": None,
+                "tenure_months": None,
+                "loan_purpose": None,
+                "sentiment": "neutral",
+                "next_question": "Could you please share your loan requirement details?"
+            }
+
+        # Update main data dict only if new info is available
+        for key in self.data:
+            if key in json_data and json_data[key] not in [None, ""]:
+                self.data[key] = json_data[key]
+
+        # Normalize numeric fields
+        self.data["loan_amount"] = self._normalize_amount(self.data["loan_amount"])
+        self.data["tenure_months"] = self._normalize_tenure(self.data["tenure_months"])
+
+        # If normalization failed, keep them as None so we can re-ask
+        if self.data["loan_amount"] is None and self.data["loan_purpose"] is not None:
+            self.data["next_question"] = (
+                "Please tell me the loan amount you are looking for "
+                "(for example: 5 lakh or 200000)."
+            )
+
+        if (
+            self.data["tenure_months"] is None
+            and self.data["loan_amount"] is not None
+            and self.data["loan_purpose"] is not None
+        ):
+            self.data["next_question"] = (
+                "What tenure are you looking for (for example: 3 years or 36 months)?"
+            )
+
+        # If core fields are all collected, clear next_question so flow can move
+        if (
+            self.data["loan_amount"] is not None
+            and self.data["tenure_months"] is not None
+            and self.data["loan_purpose"] is not None
+        ):
+            # No more questions from SalesAgent; hand off to next agent
+            self.data["next_question"] = ""
+
+        return self.data
+
+    def interactive_chat(self) -> Dict:
+        """
+        Full multi-turn conversation (single language, no detection)
+        """
+        print("Agent: Hello! I am your AI Loan Assistant. I will help you with your personal loan requirements.\n")
+        # First question
+        self.data["next_question"] = "Please tell me, what is the purpose of your loan?"
+
+        while True:
+            # Ask the current question
+            print(f"Agent: {self.data['next_question']}")
+            user_input = input("You: ")
+            self._process_message(user_input)
+
+            # If all core fields are collected, stop here
+            if (
+                self.data["loan_amount"] is not None
+                and self.data["tenure_months"] is not None
+                and self.data["loan_purpose"] is not None
+            ):
+                break
+
+        print("\nAgent: Thank you! I have collected all your details.")
+        return self.data
 
 
-__all__ = ["sales_agent_node"]
+# ====== RUN INTERACTIVE CHAT ======
+if __name__ == "__main__":
+    agent = SalesAgent()
+    # Run a local interactive session for debugging.
+    # The collected dict is kept internal (for chaining to other agents),
+    # not printed directly to the end user.
+    final_data = agent.interactive_chat()
