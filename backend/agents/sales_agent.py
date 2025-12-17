@@ -241,6 +241,152 @@ JSON FORMAT:
         return self.data
 
 
+# ====== LANGGRAPH INTEGRATION ======
+from graph.state import AgentState
+from langchain_core.messages import AIMessage
+from utils.emi import calculate_emi
+from services.data_services import offer_service
+
+
+def sales_agent_node(state: AgentState) -> AgentState:
+    """
+    Sales Agent node for LangGraph workflow.
+    Extracts loan details, calculates EMI, and negotiates interest rate.
+    
+    Steps:
+    1. Get last user message
+    2. Process through SalesAgent to extract loan details
+    3. Calculate EMI using extracted amount/tenure
+    4. Set negotiated interest rate
+    5. Generate persuasive response
+    6. Update AgentState
+    """
+    agent = SalesAgent()
+    
+    # Get last user message
+    if not state["messages"]:
+        return state
+    
+    user_message = state["messages"][-1].content
+    result = agent._process_message(user_message)
+    
+    # ========== EXTRACT & UPDATE LOAN DETAILS ==========
+    
+    if result.get('loan_amount'):
+        state['requested_loan_amount'] = float(result['loan_amount'])
+    
+    if result.get('tenure_months'):
+        state['requested_tenure'] = int(result['tenure_months'])
+    
+    if result.get('loan_purpose'):
+        state['loan_purpose'] = result['loan_purpose']
+    
+    # Store user sentiment for advisor agent
+    state['user_sentiment'] = result.get('sentiment', 'neutral')
+    
+    # ========== SET INTEREST RATE & CALCULATE EMI ==========
+    
+    # Get pre-approved offer for this customer
+    offer = offer_service.get_offer(state['phone'])
+    
+    if offer:
+        state['negotiated_interest_rate'] = offer.interest_rate
+        state['pre_approved_limit'] = offer.offer_amount
+    else:
+        # Default rate if no offer found
+        state['negotiated_interest_rate'] = 10.5
+    
+    # Calculate EMI if we have loan amount and tenure
+    if state['requested_loan_amount'] and state['requested_tenure']:
+        try:
+            emi = calculate_emi(
+                principal=state['requested_loan_amount'],
+                annual_rate=state['negotiated_interest_rate'],
+                tenure_months=state['requested_tenure']
+            )
+            state['calculated_emi'] = emi
+        except Exception as e:
+            print(f"⚠️ EMI calculation error: {e}")
+            state['calculated_emi'] = None
+    
+    # ========== GENERATE SALES RESPONSE ==========
+    
+    sales_response = _generate_sales_response(state, result)
+    state["messages"].append(AIMessage(content=sales_response))
+    
+    # ========== UPDATE STATUS ==========
+    state['loan_status'] = 'negotiating'
+    state['current_agent'] = 'sales'
+    
+    return state
+
+
+def _generate_sales_response(state: AgentState, extracted_data: dict) -> str:
+    """
+    Generate persuasive, personalized sales response based on:
+    - Customer city/profile
+    - Extracted loan details
+    - Current sentiment
+    """
+    
+    # If we have all details, make the pitch
+    if (state['requested_loan_amount'] and 
+        state['requested_tenure'] and 
+        state['calculated_emi']):
+        
+        client = Groq(api_key=_get_api_key())
+        
+        prompt = f"""You are a persuasive BFSI sales officer for CredSaathi.
+
+Customer Profile:
+- Name: {state.get('customer_name', 'Customer')}
+- City: {state.get('city', 'N/A')}
+- Current sentiment: {extracted_data.get('sentiment', 'neutral')}
+
+Loan Offer:
+- Amount: ₹{state['requested_loan_amount']:,.0f}
+- Tenure: {state['requested_tenure']} months
+- Interest Rate: {state['negotiated_interest_rate']}% p.a.
+- Monthly EMI: ₹{state['calculated_emi']:,.0f}
+
+Task: Generate a CONCISE, persuasive pitch (3-4 sentences) that:
+1. Confirms the loan offer with clear numbers
+2. Highlights EMI affordability
+3. Shows enthusiasm about their financial goals
+4. Asks for permission to proceed with verification
+
+Tone adjustments:
+- If sentiment is 'stressed': be empathetic and reassuring
+- If sentiment is 'positive': be enthusiastic
+- If sentiment is 'confused': be clear and educational
+
+Keep it conversational and professional."""
+        
+        try:
+            response = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[
+                    {"role": "system", "content": "You are a professional BFSI sales agent."},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.7,
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"⚠️ LLM response generation failed: {e}")
+            # Fallback response
+            return (f"Perfect! So you need ₹{state['requested_loan_amount']:,.0f} "
+                   f"for {state['requested_tenure']} months. That means an EMI of "
+                   f"₹{state['calculated_emi']:,.0f}/month at {state['negotiated_interest_rate']}% per annum. "
+                   f"This looks great! Shall I proceed with verification of your details?")
+    
+    # If still collecting data, ask for next field
+    return extracted_data.get('next_question', 'Please share more details about your loan needs.')
+
+
+__all__ = ["sales_agent_node", "SalesAgent"]
+
+
 # ====== RUN INTERACTIVE CHAT ======
 if __name__ == "__main__":
     agent = SalesAgent()

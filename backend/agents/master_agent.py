@@ -18,16 +18,38 @@ def master_agent_node(state: AgentState) -> AgentState:
     user_messages = [msg for msg in state["messages"] if isinstance(msg, HumanMessage)]
     
     if state["loan_status"] == "initial":
-        crm_data = crm_service.verify_customer(state["phone"])
+        # Verify customer with error handling
+        try:
+            crm_data = crm_service.verify_customer(state["phone"])
+        except Exception as e:
+            print(f"⚠️ CRM service error: {e}")
+            crm_data = None
         
         if not crm_data:
-            state["messages"].append(
-                AIMessage(content="I'm sorry, I couldn't find your details in our system. Please contact customer support.")
-            )
+            error_message = f"""Dear Customer,
+
+We encountered an issue verifying your details in our system.
+
+Possible reasons:
+• Your phone number ({state['phone']}) is not registered with us
+• There may be a temporary system issue
+
+What you can do:
+1. Check if you've registered with the correct phone number
+2. Try again in a few moments
+3. Contact our support team for assistance
+
+We apologize for the inconvenience."""
+            state["messages"].append(AIMessage(content=error_message))
             state["workflow_complete"] = True
             return state
         
-        customer = customer_service.get_customer_by_name(crm_data.name)
+        # Fetch customer details with error handling
+        customer = None
+        try:
+            customer = customer_service.get_customer_by_name(crm_data.name)
+        except Exception as e:
+            print(f"⚠️ Customer service error: {e}")
         
         state["customer_name"] = crm_data.name
         state["verified_phone"] = crm_data.phone

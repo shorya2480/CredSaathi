@@ -16,6 +16,7 @@ import os
 from dotenv import load_dotenv
 from groq import Groq
 from langchain_core.messages import AIMessage
+from graph.state import AgentState
 
 # Load environment variables
 load_dotenv()
@@ -248,7 +249,7 @@ We're here to support your financial journey. You've got this! 💪"""
 
 
 # Main advisor agent node for workflow
-def advisor_agent_node(state: Dict) -> Dict:
+def advisor_agent_node(state: AgentState) -> AgentState:
     """
     Financial advisor node for LangGraph workflow.
     Triggers after rejection to provide coaching and guidance.

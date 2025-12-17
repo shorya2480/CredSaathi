@@ -17,6 +17,7 @@ import os
 from dotenv import load_dotenv
 from groq import Groq
 from langchain_core.messages import AIMessage
+from graph.state import AgentState
 
 # Load environment variables
 load_dotenv()
@@ -318,7 +319,7 @@ Provide a brief professional summary (3-4 sentences) with:
 
 
 # Main fraud agent node for workflow
-def fraud_agent_node(state: Dict) -> Dict:
+def fraud_agent_node(state: AgentState) -> AgentState:
     """
     Fraud detection node for LangGraph workflow.
     Integrates FraudAgent into the workflow pipeline.
