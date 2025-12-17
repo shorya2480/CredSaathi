@@ -40,6 +40,15 @@ class AgentState(TypedDict):
     monthly_salary: Optional[float]  
     calculated_emi: Optional[float] 
     
+    # Fraud Detection Agent
+    fraud_risk_score: Optional[float]
+    fraud_flags: Optional[list]
+    fraud_detected: bool
+    
+    # Advisor Agent
+    advisor_guidance_provided: bool
+    advisor_recommendations: Optional[dict]
+    
     loan_status: Literal[
         "initial", 
         "negotiating",  
@@ -47,7 +56,8 @@ class AgentState(TypedDict):
         "underwriting",  
         "awaiting_salary_slip",  
         "approved", 
-        "rejected"  
+        "rejected",
+        "manual_review_fraud"
     ]
     
     rejection_reason: Optional[str]  

@@ -4,6 +4,8 @@ from agents.master_agent import master_agent_node
 from agents.sales_agent import sales_agent_node
 from agents.verification_agent import verification_agent_node
 from agents.underwriting_agent import underwriting_agent_node
+from agents.fraud_agent import fraud_agent_node
+from agents.advisor_agent import advisor_agent_node
 from agents.sanction_generator import sanction_generator_node
 
 
@@ -47,22 +49,39 @@ def route_after_verification(state: AgentState) -> str:
 def route_after_underwriting(state: AgentState) -> str:
     """
     Route based on underwriting decision.
+    After underwriting, ALWAYS go to fraud detection (sequential as per requirements).
     
     Routes:
-    - If approved, go to sanction letter generation
-    - If rejected or needs salary slip, go back to master for final message
-    - Otherwise, end
+    - Always → fraud (sequential fraud detection after underwriting)
     """
-    status = state['loan_status']
+    return 'fraud'
+
+
+def route_after_fraud(state: AgentState) -> str:
+    """
+    Route based on fraud detection results.
     
-    if status == 'approved':
+    Routes:
+    - If high risk (fraud detected), reject → master_final
+    - If medium risk (manual review), flag → master_final
+    - If low risk and approved, go to sanction
+    - If low risk but not approved, go to master_final
+    """
+    fraud_risk = state.get('fraud_risk_score', 0)
+    status = state.get('loan_status', 'unknown')
+    
+    if fraud_risk >= 70 or status == 'rejected':
+        # High risk fraud or already rejected
+        return 'advisor'
+    elif fraud_risk >= 40:
+        # Medium risk - manual review
+        return 'master_final'
+    elif status == 'approved':
+        # Low fraud risk and approved
         return 'sanction'
-    elif status == 'rejected':
-        return 'master_final'
-    elif status == 'awaiting_salary_slip':
-        return 'master_final'
     else:
-        return END
+        # Other status (awaiting_salary_slip, etc)
+        return 'master_final'
 
 
 def route_after_sanction(state: AgentState) -> str:
@@ -72,26 +91,41 @@ def route_after_sanction(state: AgentState) -> str:
     return 'master_final'
 
 
+def route_after_advisor(state: AgentState) -> str:
+    """
+    After advisor guidance (post-rejection coaching), end workflow.
+    """
+    return END
+
+
 def create_loan_workflow():
     """
-    Create the complete LangGraph workflow.
+    Create the complete LangGraph workflow with Fraud & Advisor agents.
     
     Flow:
     START → Master (greet) → Sales (negotiate) → Verification (KYC) 
-    → Underwriting (credit check) → Sanction (PDF) → Master (final) → END
+    → Underwriting (credit check) → Fraud (compliance check)
+    → Sanction (PDF) / Advisor (coaching) → Master (final) → END
+    
+    New: Fraud agent runs sequentially after underwriting
+    New: Advisor agent provides post-rejection guidance
     """
     
     workflow = StateGraph(AgentState)
     
+    # Add all nodes
     workflow.add_node("master", master_agent_node)
     workflow.add_node("sales", sales_agent_node)
     workflow.add_node("verification", verification_agent_node)
     workflow.add_node("underwriting", underwriting_agent_node)
+    workflow.add_node("fraud", fraud_agent_node)
     workflow.add_node("sanction", sanction_generator_node)
+    workflow.add_node("advisor", advisor_agent_node)
     workflow.add_node("master_final", master_agent_node)  # For final messages
     
     workflow.set_entry_point("master")
     
+    # Master → Sales/End
     workflow.add_conditional_edges(
         "master",
         route_after_master,
@@ -101,6 +135,7 @@ def create_loan_workflow():
         }
     )
     
+    # Sales → Verification/End
     workflow.add_conditional_edges(
         "sales",
         route_after_sales,
@@ -110,6 +145,7 @@ def create_loan_workflow():
         }
     )
     
+    # Verification → Underwriting
     workflow.add_conditional_edges(
         "verification",
         route_after_verification,
@@ -118,16 +154,28 @@ def create_loan_workflow():
         }
     )
     
+    # Underwriting → Fraud (sequential)
     workflow.add_conditional_edges(
         "underwriting",
         route_after_underwriting,
         {
+            "fraud": "fraud"
+        }
+    )
+    
+    # Fraud → Sanction/Advisor/Master
+    workflow.add_conditional_edges(
+        "fraud",
+        route_after_fraud,
+        {
             "sanction": "sanction",
+            "advisor": "advisor",
             "master_final": "master_final",
             END: END
         }
     )
     
+    # Sanction → Master Final
     workflow.add_conditional_edges(
         "sanction",
         route_after_sanction,
@@ -136,6 +184,16 @@ def create_loan_workflow():
         }
     )
     
+    # Advisor → End
+    workflow.add_conditional_edges(
+        "advisor",
+        route_after_advisor,
+        {
+            END: END
+        }
+    )
+    
+    # Master Final → End
     workflow.add_edge("master_final", END)
     
     return workflow.compile()

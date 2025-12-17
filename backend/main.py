@@ -6,6 +6,7 @@ from graph.state import AgentState
 from graph.workflow import loan_workflow
 from langchain_core.messages import HumanMessage
 import uuid
+import re
 from typing import Dict, Optional
 from pathlib import Path
 import shutil
@@ -29,7 +30,13 @@ sessions: Dict[str, AgentState] = {}
 def extract_salary_from_file(file_path: Path) -> Optional[float]:
     """
     Extract monthly salary from PDF / image salary slip.
+    Supports both PDF and image files (JPG, PNG).
     Returns salary as float if found, else None.
+    
+    Extraction strategy:
+    1. Look for common salary keywords (salary, net pay, take-home, ctc)
+    2. Extract all numbers in salary range (10,000 - 10,000,000)
+    3. Return the largest number found (most likely to be the salary)
     """
     text = ""
 
@@ -45,14 +52,31 @@ def extract_salary_from_file(file_path: Path) -> Optional[float]:
             import pytesseract
             image = Image.open(file_path)
             text = pytesseract.image_to_string(image)
+        else:
+            return None
 
-        # Extract numbers like 50000, 50,000, ₹50000
-        numbers = re.findall(r"\d{2,6}", text.replace(",", ""))
+        # Remove commas and currency symbols for uniform number extraction
+        cleaned_text = text.replace(",", "").replace("₹", "").replace("Rs", "").replace("Rs.", "")
+        
+        # Extract all numbers between 10,000 and 10,000,000 (reasonable salary range)
+        numbers = re.findall(r"\b\d{5,7}\b", cleaned_text)
+        
         if numbers:
-            return float(max(numbers, key=int))
+            # Convert to integers, filter valid salary range, return max (most likely salary)
+            valid_salaries = [int(n) for n in numbers if 10000 <= int(n) <= 10000000]
+            if valid_salaries:
+                return float(max(valid_salaries))
+        
+        # Fallback: if pattern-based extraction fails, take any large 5+ digit number
+        all_large_numbers = re.findall(r"\d{5,}", cleaned_text)
+        if all_large_numbers:
+            valid = [int(n) for n in all_large_numbers if 10000 <= int(n) <= 10000000]
+            if valid:
+                return float(max(valid))
 
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Warning: Error extracting salary from {file_path.name}: {str(e)}")
+        return None
 
     return None
 
@@ -78,6 +102,11 @@ def initialize_state(phone: str, session_id: str) -> AgentState:
         salary_slip_uploaded=False,
         monthly_salary=None,
         calculated_emi=None,
+        fraud_risk_score=None,
+        fraud_flags=[],
+        fraud_detected=False,
+        advisor_guidance_provided=False,
+        advisor_recommendations=None,
         loan_status="initial",
         rejection_reason=None,
         sanction_letter_generated=False,
@@ -93,7 +122,7 @@ async def root():
         "status": "running",
         "service": "CredSaathi Loan Agent API",
         "version": "1.0.0",
-        "agents": ["Master", "Sales", "Verification", "Underwriting", "Sanction Generator"],
+        "agents": ["Master", "Sales", "Verification", "Underwriting", "Fraud Detection", "Advisor", "Sanction Generator"],
         "endpoints": {
             "chat": "POST /chat",
             "upload_salary": "POST /upload-salary-slip",
