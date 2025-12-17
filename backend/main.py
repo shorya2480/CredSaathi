@@ -26,36 +26,6 @@ app.add_middleware(
 
 sessions: Dict[str, AgentState] = {}
 
-def extract_salary_from_file(file_path: Path) -> Optional[float]:
-    """
-    Extract monthly salary from PDF / image salary slip.
-    Returns salary as float if found, else None.
-    """
-    text = ""
-
-    try:
-        if file_path.suffix.lower() == ".pdf":
-            import pdfplumber
-            with pdfplumber.open(file_path) as pdf:
-                for page in pdf.pages:
-                    text += page.extract_text() or ""
-
-        elif file_path.suffix.lower() in [".jpg", ".jpeg", ".png"]:
-            from PIL import Image
-            import pytesseract
-            image = Image.open(file_path)
-            text = pytesseract.image_to_string(image)
-
-        # Extract numbers like 50000, 50,000, ₹50000
-        numbers = re.findall(r"\d{2,6}", text.replace(",", ""))
-        if numbers:
-            return float(max(numbers, key=int))
-
-    except Exception:
-        pass
-
-    return None
-
 
 def initialize_state(phone: str, session_id: str) -> AgentState:
     return AgentState(
@@ -147,7 +117,7 @@ async def chat(request: ChatRequest):
 async def upload_salary_slip(
     session_id: str,
     file: UploadFile = File(...),
-    # monthly_salary: float = Form(...)
+    monthly_salary: float = Form(...)
 ):
     
     if session_id not in sessions:
@@ -165,16 +135,8 @@ async def upload_salary_slip(
     with file_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
-    extracted_salary = extract_salary_from_file(file_path)
-
-    if not extracted_salary:
-        raise HTTPException(
-            status_code=400,
-            detail="Could not extract salary from uploaded file"
-        )
-
     state['salary_slip_uploaded'] = True
-    state['monthly_salary'] = extracted_salary
+    state['monthly_salary'] = monthly_salary
     
     state['loan_status'] = 'underwriting'
     state['current_agent'] = 'underwriting'

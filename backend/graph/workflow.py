@@ -3,7 +3,7 @@ from graph.state import AgentState
 from agents.master_agent import master_agent_node
 from agents.sales_agent import sales_agent_node
 from agents.verification_agent import verification_agent_node
-from agents.underwriting_agent import underwriting_agent_node
+from agents.underwritting_agent import underwriting_agent_node
 from agents.sanction_generator import sanction_generator_node
 
 
