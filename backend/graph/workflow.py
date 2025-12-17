@@ -3,9 +3,13 @@ from graph.state import AgentState
 from agents.master_agent import master_agent_node
 from agents.sales_agent import sales_agent_node
 from agents.verification_agent import verification_agent_node
+<<<<<<< HEAD
 from agents.underwriting_agent import underwriting_agent_node
 from agents.fraud_agent import fraud_agent_node
 from agents.advisor_agent import advisor_agent_node
+=======
+from agents.underwritting_agent import underwriting_agent_node
+>>>>>>> da183c9503b11cca58f1d3fbc77386e0b8447cd0
 from agents.sanction_generator import sanction_generator_node
 
 

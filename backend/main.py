@@ -27,6 +27,7 @@ app.add_middleware(
 
 sessions: Dict[str, AgentState] = {}
 
+<<<<<<< HEAD
 def extract_salary_from_file(file_path: Path) -> Optional[float]:
     """
     Extract monthly salary from PDF / image salary slip.
@@ -80,6 +81,8 @@ def extract_salary_from_file(file_path: Path) -> Optional[float]:
 
     return None
 
+=======
+>>>>>>> da183c9503b11cca58f1d3fbc77386e0b8447cd0
 
 def initialize_state(phone: str, session_id: str) -> AgentState:
     return AgentState(
@@ -176,7 +179,7 @@ async def chat(request: ChatRequest):
 async def upload_salary_slip(
     session_id: str,
     file: UploadFile = File(...),
-    # monthly_salary: float = Form(...)
+    monthly_salary: float = Form(...)
 ):
     
     if session_id not in sessions:
@@ -194,16 +197,8 @@ async def upload_salary_slip(
     with file_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
-    extracted_salary = extract_salary_from_file(file_path)
-
-    if not extracted_salary:
-        raise HTTPException(
-            status_code=400,
-            detail="Could not extract salary from uploaded file"
-        )
-
     state['salary_slip_uploaded'] = True
-    state['monthly_salary'] = extracted_salary
+    state['monthly_salary'] = monthly_salary
     
     state['loan_status'] = 'underwriting'
     state['current_agent'] = 'underwriting'
